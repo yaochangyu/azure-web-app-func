@@ -40,6 +40,25 @@ cosmos-acme-saas-prod-001      # Cosmos DB (global)
 kv-acme-prod                   # Key Vault
 ```
 
+**Lab/Experimental Environment - Development:**
+```
+rg-yao-lab-dev                 # Resource Group (Lab environment)
+asp-yao-webapi-dev             # App Service Plan (Web API)
+app-yao-webapi-dev             # Web App (Web API)
+func-yao-processor-dev         # Function App (future)
+sqldb-yao-lab-dev              # SQL Database (shared)
+kv-yao-dev                     # Key Vault (shared secrets)
+appi-yao-dev                   # Application Insights (shared monitoring)
+```
+
+**Why this pattern works for lab/experimental environments:**
+- ✅ Single resource group for entire lab (easy cleanup)
+- ✅ Workload name "lab" indicates experimental nature
+- ✅ Specific services have descriptive names (webapi, processor)
+- ✅ Shared services (Key Vault, Application Insights) use org-level naming
+- ✅ Supports multiple applications in one lab environment
+- ✅ Clear environment separation (dev)
+
 **Microservices Architecture - Multiple Services:**
 ```
 # User Service

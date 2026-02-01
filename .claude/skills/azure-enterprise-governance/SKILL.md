@@ -18,7 +18,21 @@ Design and validate Azure resource naming strategies that are:
 - **Auditable**: Enable automated compliance checking
 - **Human-friendly**: Clear, consistent, and easy to parse
 
-Reference `references/naming-conventions.md` for:
+**🎯 Interactive Decision Guide:**
+
+Use `references/naming-decision-guide.md` for step-by-step guidance:
+- **Decision flowchart** - Visual guide for choosing naming patterns
+- **Questionnaire** - Answer questions to determine your needs
+- **Template library** - Ready-to-use naming templates for common scenarios:
+  - Lab/Experimental environments (for learning and POC)
+  - Single application deployment (simple architectures)
+  - Microservices architecture (distributed systems)
+  - Multi-tenant SaaS (platform services)
+- **Interactive naming generator** - Auto-generate naming schemes
+
+**📚 Detailed Reference:**
+
+See `references/naming-conventions.md` for:
 - Microsoft-recommended naming format
 - Resource type abbreviations from official CAF documentation
 - Naming constraints and restrictions per resource type
@@ -26,11 +40,12 @@ Reference `references/naming-conventions.md` for:
 - Hierarchical resource organization patterns
 
 **Usage Pattern:**
-1. Review your organization structure (org, department, project)
-2. Select naming template based on scale (simple, standard, enterprise)
-3. Define abbreviations for resource types and environments
-4. Validate naming scheme against restrictions in `naming-conventions.md`
-5. Use `scripts/validate_naming.py` to verify resource names before deployment
+1. **Start with decision guide**: Run `python scripts/generate_naming.py` for interactive help
+2. Review your organization structure (org, department, project)
+3. Select naming template based on scenario (lab, app, microservices, multi-tenant)
+4. Define abbreviations for resource types and environments
+5. Validate naming scheme: `python scripts/validate_naming.py --resource-group <name>`
+6. Apply naming scheme consistently across all resources
 
 ### 2. Security & Compliance Framework
 Implement security controls across Azure infrastructure using:
