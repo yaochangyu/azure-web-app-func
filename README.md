@@ -227,53 +227,57 @@ Workflow 檔案位置：[.github/workflows/deploy-azure-function.yml](.github/wo
 
 ### 設定步驟
 
-#### 步驟 1: 設定 GitHub Secret
+#### 步驟 1: 設定 GitHub Secret（使用 Service Principal）
 
-需要在 GitHub Repository 中設定以下 Secret：
+**使用自動化腳本（推薦）**
 
-| Secret 名稱 | 說明 |
-|------------|------|
-| `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` | Azure Function App 的發布設定檔 |
-
-**方法 1：使用自動化腳本（推薦）**
-
-專案提供自動化腳本 [setup-github-secret.sh](setup-github-secret.sh)：
+專案提供自動化腳本 [setup-service-principal.sh](setup-service-principal.sh)：
 
 ```bash
 # 賦予執行權限
-chmod +x ./setup-github-secret.sh
+chmod +x ./setup-service-principal.sh
 
 # 執行腳本
-./setup-github-secret.sh
+./setup-service-principal.sh
 ```
 
 **前置需求：**
 - 已安裝並登入 Azure CLI (`az login`)
 - 已安裝並登入 GitHub CLI (`gh auth login`)
+- 具有在 Azure AD 建立 Service Principal 的權限
 
 腳本會自動完成：
-1. 檢查必要工具（Azure CLI + GitHub CLI）
-2. 從 Azure 取得 Publish Profile
-3. 使用 GitHub CLI 直接寫入 Secret
-4. 驗證設定並自動清理敏感暫存檔
+1. ✅ 檢查必要工具（Azure CLI + GitHub CLI）
+2. ✅ 建立 Azure Service Principal
+3. ✅ 設定 Resource Group Contributor 權限
+4. ✅ 將憑證儲存到 GitHub Secret (`AZURE_CREDENTIALS`)
+5. ✅ 顯示設定摘要和後續步驟
 
-**方法 2：手動設定**
+**手動設定（進階）**
 
 ```bash
-# 1. 取得 Publish Profile
-az functionapp deployment list-publishing-profiles \
-  --name func-yao-lab-938612 \
-  --resource-group rg-yao-lab \
-  --xml
+# 1. 取得訂閱 ID
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
-# 2. 複製輸出的 XML 內容
+# 2. 建立 Service Principal
+az ad sp create-for-rbac \
+  --name "github-actions-func-yao-lab" \
+  --role contributor \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-yao-lab" \
+  --sdk-auth \
+  --output json > azure-credentials.json
 
-# 3. 前往 GitHub Repository → Settings → Secrets and variables → Actions
-# 4. 點選 "New repository secret"
-# 5. Name: AZURE_FUNCTIONAPP_PUBLISH_PROFILE
-# 6. Value: 貼上步驟 1 的 XML 內容
-# 7. 點選 "Add secret"
+# 3. 將憑證儲存到 GitHub Secret
+gh secret set AZURE_CREDENTIALS < azure-credentials.json --repo yaochangyu/azure-web-app-func
+
+# 4. 清理敏感檔案
+rm azure-credentials.json
 ```
+
+**所需 Secret：**
+| Secret 名稱 | 說明 |
+|------------|------|
+| `AZURE_CREDENTIALS` | Azure Service Principal 憑證（JSON 格式）|
 
 #### 步驟 2: 更新 Workflow 配置
 
@@ -370,15 +374,10 @@ gh workflow run "Deploy to Azure Function App" --repo yaochangyu/azure-web-app-f
 
 ### 疑難排解
 
-**問題 1：Publish Profile 無效**
+**問題 1：Service Principal 驗證失敗**
 ```bash
-# 重新取得 Publish Profile
-az functionapp deployment list-publishing-profiles \
-  --name func-yao-lab-938612 \
-  --resource-group rg-yao-lab \
-  --xml
-
-# 更新 GitHub Secret
+# 重新建立 Service Principal 並更新憑證
+./setup-service-principal.sh
 ```
 
 **問題 2：建置失敗**
@@ -393,9 +392,11 @@ az functionapp deployment list-publishing-profiles \
 
 ### 安全性建議
 
-- ✅ **Publish Profile 已自動加密** - GitHub Secrets 採用加密儲存
-- ✅ **暫存檔自動清理** - `setup-github-secret.sh` 會自動刪除敏感檔案
-- ⚠️ **定期輪換憑證** - 建議每 90 天重新產生 Publish Profile
+- ✅ **Service Principal 安全性** - 使用 Azure AD 身分驗證，比傳統 Publish Profile 更安全
+- ✅ **憑證已自動加密** - GitHub Secrets 採用加密儲存
+- ✅ **暫存檔自動清理** - `setup-service-principal.sh` 會自動刪除敏感檔案
+- ✅ **最小權限原則** - Service Principal 僅授予 Resource Group 層級的 Contributor 權限
+- ⚠️ **定期輪換憑證** - 建議每 90 天重新產生 Service Principal 憑證
 - ⚠️ **限制分支權限** - 只允許受信任的分支觸發部署
 
 ## 敏感資料管理
