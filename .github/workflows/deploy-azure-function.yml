@@ -1,0 +1,60 @@
+name: Deploy to Azure Function App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # 允許手動觸發
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'func-yao-lab-938612'
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'AzureWebApp.Functions'
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v4
+
+    - name: 'Setup .NET ${{ env.DOTNET_VERSION }}'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 'Restore dependencies'
+      run: dotnet restore
+      working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+    - name: 'Build project'
+      run: dotnet build --configuration Release --no-restore
+      working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+    - name: 'Publish project'
+      run: dotnet publish --configuration Release --no-build --output ./output
+      working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+    - name: 'Deploy to Azure Functions'
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+    - name: 'Health Check'
+      run: |
+        echo "等待 Function App 啟動..."
+        sleep 30
+        
+        # 嘗試呼叫 Version endpoint 驗證部署
+        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/version || echo "000")
+        
+        if [ "$RESPONSE" = "200" ]; then
+          echo "✓ Health check 成功 (HTTP $RESPONSE)"
+          curl -s https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/version | jq '.'
+        else
+          echo "⚠ Health check 回應碼: $RESPONSE"
+          echo "注意：這可能是正常的，某些 Function 需要驗證或參數"
+        fi

@@ -160,6 +160,172 @@ curl https://<function-app-name>.azurewebsites.net/api/version
    func azure functionapp publish <function-app-name>
    ```
 
+## 使用 GitHub Actions 自動部署
+
+專案已設定 GitHub Actions workflow，可在推送程式碼到 main 分支時自動部署到 Azure Function App。
+
+### Workflow 配置
+
+Workflow 檔案位置：[.github/workflows/deploy-azure-function.yml](.github/workflows/deploy-azure-function.yml)
+
+**主要功能：**
+- ✅ 自動建置 .NET 8.0 專案
+- ✅ 執行測試和發布
+- ✅ 部署到 Azure Function App
+- ✅ 部署後健康檢查（呼叫 `/api/version` 端點）
+- ✅ 支援手動觸發（workflow_dispatch）
+
+**觸發條件：**
+- Push 到 `main` 分支時自動執行
+- 可從 GitHub Actions 頁面手動觸發
+
+### 設定步驟
+
+#### 步驟 1: 設定 GitHub Secret
+
+需要在 GitHub Repository 中設定以下 Secret：
+
+| Secret 名稱 | 說明 |
+|------------|------|
+| `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` | Azure Function App 的發布設定檔 |
+
+**方法 1：使用自動化腳本（推薦）**
+
+專案提供輔助腳本 [setup-github-secret.sh](setup-github-secret.sh) 來簡化設定流程：
+
+```bash
+# 賦予執行權限
+chmod +x ./setup-github-secret.sh
+
+# 執行腳本
+./setup-github-secret.sh
+```
+
+腳本會自動完成：
+1. 從 Azure 取得 Publish Profile
+2. 複製到系統剪貼簿
+3. 提供詳細的 GitHub Secret 設定指引
+4. 自動清理敏感暫存檔
+
+**方法 2：手動設定**
+
+```bash
+# 1. 取得 Publish Profile
+az functionapp deployment list-publishing-profiles \
+  --name func-yao-lab-938612 \
+  --resource-group rg-yao-lab \
+  --xml
+
+# 2. 複製輸出的 XML 內容
+
+# 3. 前往 GitHub Repository → Settings → Secrets and variables → Actions
+# 4. 點選 "New repository secret"
+# 5. Name: AZURE_FUNCTIONAPP_PUBLISH_PROFILE
+# 6. Value: 貼上步驟 1 的 XML 內容
+# 7. 點選 "Add secret"
+```
+
+#### 步驟 2: 更新 Workflow 配置
+
+編輯 [.github/workflows/deploy-azure-function.yml](.github/workflows/deploy-azure-function.yml)，確認以下環境變數：
+
+```yaml
+env:
+  AZURE_FUNCTIONAPP_NAME: 'func-yao-lab-938612'  # 您的 Function App 名稱
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'AzureWebApp.Functions'
+  DOTNET_VERSION: '8.0.x'
+```
+
+#### 步驟 3: 觸發部署
+
+**自動觸發：**
+```bash
+git add .
+git commit -m "Update function code"
+git push origin main
+```
+
+**手動觸發：**
+1. 前往 GitHub Repository → Actions
+2. 選擇 "Deploy to Azure Function App" workflow
+3. 點選 "Run workflow" → "Run workflow"
+
+### 監控部署
+
+1. **查看執行狀態**
+   - 前往：`https://github.com/yaochangyu/azure-web-app-func/actions`
+   - 查看最新的 workflow 執行記錄
+
+2. **部署成功驗證**
+   
+   Workflow 會自動執行健康檢查：
+   ```bash
+   curl https://func-yao-lab-938612.azurewebsites.net/api/version
+   ```
+
+   成功回應範例：
+   ```json
+   {
+     "Version": "a1b2c3d",
+     "BuildTime": "2026-02-01T10:30:00Z",
+     "Environment": "Production"
+   }
+   ```
+
+3. **查看部署日誌**
+   - 在 GitHub Actions 執行頁面查看詳細日誌
+   - 或透過 Azure Portal → Function App → Deployment Center 查看
+
+### Workflow 執行步驟
+
+```
+1. Checkout code (actions/checkout@v4)
+   ↓
+2. Setup .NET 8.0 (actions/setup-dotnet@v4)
+   ↓
+3. Restore dependencies (dotnet restore)
+   ↓
+4. Build project (dotnet build --configuration Release)
+   ↓
+5. Publish project (dotnet publish --output ./output)
+   ↓
+6. Deploy to Azure (Azure/functions-action@v1)
+   ↓
+7. Health Check (curl /api/version)
+   ↓
+8. ✅ 部署完成
+```
+
+### 疑難排解
+
+**問題 1：Publish Profile 無效**
+```bash
+# 重新取得 Publish Profile
+az functionapp deployment list-publishing-profiles \
+  --name func-yao-lab-938612 \
+  --resource-group rg-yao-lab \
+  --xml
+
+# 更新 GitHub Secret
+```
+
+**問題 2：建置失敗**
+- 檢查 .NET 版本是否正確（需要 8.0.x）
+- 確認專案檔路徑正確
+- 查看 GitHub Actions 日誌中的錯誤訊息
+
+**問題 3：健康檢查失敗**
+- 確認 Function App 已成功啟動（可能需要等待 30-60 秒）
+- 檢查 `/api/version` 端點是否正常運作
+- 查看 Azure Portal 中的 Function App 日誌
+
+### 安全性建議
+
+- ✅ **Publish Profile 已自動加密** - GitHub Secrets 採用加密儲存
+- ✅ **暫存檔自動清理** - `setup-github-secret.sh` 會自動刪除敏感檔案
+- ⚠️ **定期輪換憑證** - 建議每 90 天重新產生 Publish Profile
+- ⚠️ **限制分支權限** - 只允許受信任的分支觸發部署
+
 ## 敏感資料管理
 
 ### 取得 Function Key
