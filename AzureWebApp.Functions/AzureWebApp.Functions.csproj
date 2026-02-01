@@ -5,7 +5,19 @@
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <SourceRevisionId>$(GitCommitHash)</SourceRevisionId>
+    <InformationalVersion>$(GitCommitHash)-$(BuildTime)</InformationalVersion>
   </PropertyGroup>
+  
+  <Target Name="SetBuildInfo" BeforeTargets="GetAssemblyVersion">
+    <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" />
+    </Exec>
+    <PropertyGroup>
+      <GitCommitHash Condition="'$(GitCommitHash)' == ''">unknown</GitCommitHash>
+      <BuildTime>$([System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))</BuildTime>
+    </PropertyGroup>
+  </Target>
   <ItemGroup>
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.50.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.5" ExcludeAssets="Runtime" />
