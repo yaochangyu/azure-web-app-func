@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # ==========================================
-# GitHub Secret 設定腳本
+# GitHub Secret 自動設定腳本
 # ==========================================
-# 此腳本協助設定 GitHub Actions 所需的 Azure Publish Profile
+# 此腳本自動設定 GitHub Actions 所需的 Azure Publish Profile
+# 使用 GitHub CLI 直接寫入 Secret，無需手動操作
 # 注意：暫存檔會在設定完成後自動刪除
 # ==========================================
 
@@ -13,6 +14,7 @@ set -e  # 遇到錯誤立即停止
 FUNCTION_APP_NAME="func-yao-lab-938612"
 RESOURCE_GROUP="rg-yao-lab"
 GITHUB_REPO="yaochangyu/azure-web-app-func"
+SECRET_NAME="AZURE_FUNCTIONAPP_PUBLISH_PROFILE"
 TEMP_FILE="/tmp/azure-publish-profile-$(date +%s).xml"
 
 # 顏色輸出
@@ -23,7 +25,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}GitHub Secret 設定輔助工具${NC}"
+echo -e "${BLUE}GitHub Secret 自動設定工具${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 # 清理函數 - 確保暫存檔被刪除
@@ -38,16 +40,44 @@ cleanup() {
 # 設定 trap 確保腳本結束時執行清理
 trap cleanup EXIT INT TERM
 
-# 步驟 1: 檢查 Azure 登入狀態
-echo -e "\n${YELLOW}[步驟 1/5]${NC} 檢查 Azure 登入狀態..."
+# 步驟 1: 檢查必要工具
+echo -e "\n${YELLOW}[步驟 1/4]${NC} 檢查必要工具..."
+
+# 檢查 Azure CLI
+if ! command -v az &> /dev/null; then
+    echo -e "${RED}✗ 未安裝 Azure CLI${NC}"
+    echo -e "${YELLOW}   安裝方式: https://aka.ms/azure-cli${NC}"
+    exit 1
+fi
+
+# 檢查 Azure 登入狀態
 if ! az account show &> /dev/null; then
     echo -e "${RED}✗ 未登入 Azure，請先執行: az login${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Azure 帳戶已登入${NC}"
+
+# 檢查 GitHub CLI
+if ! command -v gh &> /dev/null; then
+    echo -e "${RED}✗ 未安裝 GitHub CLI${NC}"
+    echo -e "${YELLOW}   安裝方式:${NC}"
+    echo -e "${YELLOW}   - Linux: sudo apt install gh${NC}"
+    echo -e "${YELLOW}   - macOS: brew install gh${NC}"
+    echo -e "${YELLOW}   - Windows: winget install GitHub.cli${NC}"
+    echo -e "${YELLOW}   - 或參考: https://cli.github.com/manual/installation${NC}"
+    exit 1
+fi
+
+# 檢查 GitHub 登入狀態
+if ! gh auth status &> /dev/null; then
+    echo -e "${RED}✗ 未登入 GitHub CLI，請先執行: gh auth login${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Azure CLI 已安裝且已登入${NC}"
+echo -e "${GREEN}✓ GitHub CLI 已安裝且已登入${NC}"
 
 # 步驟 2: 從 Azure 取得 Publish Profile
-echo -e "\n${YELLOW}[步驟 2/5]${NC} 從 Azure 取得 Publish Profile..."
+echo -e "\n${YELLOW}[步驟 2/4]${NC} 從 Azure 取得 Publish Profile..."
 az functionapp deployment list-publishing-profiles \
   --name "$FUNCTION_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
@@ -58,86 +88,51 @@ if [ ! -s "$TEMP_FILE" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Publish Profile 已儲存到暫存檔${NC}"
-echo -e "${YELLOW}   暫存檔位置: $TEMP_FILE${NC}"
+echo -e "${GREEN}✓ Publish Profile 已取得${NC}"
 
-# 步驟 3: 複製到剪貼簿（如果可用）
-echo -e "\n${YELLOW}[步驟 3/5]${NC} 準備複製到剪貼簿..."
+# 步驟 3: 使用 GitHub CLI 設定 Secret
+echo -e "\n${YELLOW}[步驟 3/4]${NC} 寫入 GitHub Secret..."
 
-if command -v xclip &> /dev/null; then
-    cat "$TEMP_FILE" | xclip -selection clipboard
-    echo -e "${GREEN}✓ 已複製到剪貼簿 (xclip)${NC}"
-elif command -v pbcopy &> /dev/null; then
-    cat "$TEMP_FILE" | pbcopy
-    echo -e "${GREEN}✓ 已複製到剪貼簿 (pbcopy)${NC}"
-elif command -v clip.exe &> /dev/null; then
-    cat "$TEMP_FILE" | clip.exe
-    echo -e "${GREEN}✓ 已複製到剪貼簿 (Windows clip)${NC}"
+# 使用 gh secret set 命令
+if gh secret set "$SECRET_NAME" --repo "$GITHUB_REPO" < "$TEMP_FILE"; then
+    echo -e "${GREEN}✓ Secret 已成功寫入 GitHub Repository${NC}"
+    echo -e "${YELLOW}   Repository: ${GITHUB_REPO}${NC}"
+    echo -e "${YELLOW}   Secret Name: ${SECRET_NAME}${NC}"
 else
-    echo -e "${YELLOW}⚠ 未找到剪貼簿工具，請手動複製${NC}"
-    echo -e "${YELLOW}   執行以下命令查看內容: cat $TEMP_FILE${NC}"
+    echo -e "${RED}✗ 寫入 Secret 失敗${NC}"
+    exit 1
 fi
 
-# 步驟 4: 顯示設定指引
-echo -e "\n${YELLOW}[步驟 4/5]${NC} 設定 GitHub Secret"
-echo -e "${BLUE}========================================${NC}"
-echo -e "${GREEN}請按照以下步驟設定：${NC}"
-echo ""
-echo -e "1️⃣  開啟瀏覽器，前往："
-echo -e "   ${BLUE}https://github.com/${GITHUB_REPO}/settings/secrets/actions${NC}"
-echo ""
-echo -e "2️⃣  點選 ${GREEN}'New repository secret'${NC} 按鈕"
-echo ""
-echo -e "3️⃣  填寫以下資訊："
-echo -e "   Name:  ${GREEN}AZURE_FUNCTIONAPP_PUBLISH_PROFILE${NC}"
-echo -e "   Value: ${YELLOW}貼上剪貼簿內容（已自動複製）${NC}"
-echo ""
-echo -e "4️⃣  點選 ${GREEN}'Add secret'${NC} 按鈕完成"
-echo -e "${BLUE}========================================${NC}"
+# 步驟 4: 驗證設定
+echo -e "\n${YELLOW}[步驟 4/4]${NC} 驗證設定..."
 
-# 如果剪貼簿不可用，顯示檔案內容
-if ! command -v xclip &> /dev/null && ! command -v pbcopy &> /dev/null && ! command -v clip.exe &> /dev/null; then
-    echo -e "\n${YELLOW}Publish Profile 內容：${NC}"
-    echo -e "${BLUE}----------------------------------------${NC}"
-    cat "$TEMP_FILE"
-    echo -e "${BLUE}----------------------------------------${NC}"
-fi
-
-# 步驟 5: 等待使用者確認
-echo -e "\n${YELLOW}[步驟 5/5]${NC} 等待確認..."
-read -p "$(echo -e ${GREEN}是否已完成 GitHub Secret 設定？ [y/N]: ${NC})" -n 1 -r
-echo
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo -e "\n${GREEN}✓ 設定完成！${NC}"
-    
-    # 顯示後續步驟
-    echo -e "\n${BLUE}========================================${NC}"
-    echo -e "${GREEN}🎉 GitHub Actions 已準備就緒！${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    echo ""
-    echo -e "${YELLOW}測試部署方式：${NC}"
-    echo ""
-    echo -e "方式 1️⃣  手動觸發 workflow"
-    echo -e "   前往: ${BLUE}https://github.com/${GITHUB_REPO}/actions${NC}"
-    echo -e "   選擇 'Deploy to Azure Function App' → 'Run workflow'"
-    echo ""
-    echo -e "方式 2️⃣  推送程式碼自動觸發"
-    echo -e "   ${GREEN}git add .${NC}"
-    echo -e "   ${GREEN}git commit -m \"Setup GitHub Actions\"${NC}"
-    echo -e "   ${GREEN}git push origin main${NC}"
-    echo ""
-    echo -e "${BLUE}========================================${NC}"
+# 列出所有 Secrets（不會顯示內容，只顯示名稱）
+if gh secret list --repo "$GITHUB_REPO" | grep -q "$SECRET_NAME"; then
+    echo -e "${GREEN}✓ Secret 已存在於 Repository 中${NC}"
 else
-    echo -e "\n${YELLOW}⚠ 設定未完成${NC}"
-    echo -e "${YELLOW}暫存檔將保留在: $TEMP_FILE${NC}"
-    echo -e "${RED}請注意：此檔案包含敏感資訊，完成設定後請手動刪除${NC}"
-    echo -e "${YELLOW}刪除命令: rm $TEMP_FILE${NC}"
-    
-    # 取消自動清理
-    trap - EXIT INT TERM
-    exit 0
+    echo -e "${YELLOW}⚠ 無法驗證 Secret（可能是權限問題）${NC}"
 fi
+
+# 顯示完成訊息
+echo -e "\n${BLUE}========================================${NC}"
+echo -e "${GREEN}🎉 GitHub Secret 設定完成！${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo ""
+echo -e "${YELLOW}後續步驟：${NC}"
+echo ""
+echo -e "方式 1️⃣  手動觸發 workflow"
+echo -e "   前往: ${BLUE}https://github.com/${GITHUB_REPO}/actions${NC}"
+echo -e "   選擇 'Deploy to Azure Function App' → 'Run workflow'"
+echo ""
+echo -e "方式 2️⃣  推送程式碼自動觸發"
+echo -e "   ${GREEN}git add .${NC}"
+echo -e "   ${GREEN}git commit -m \"Setup GitHub Actions\"${NC}"
+echo -e "   ${GREEN}git push origin main${NC}"
+echo ""
+echo -e "方式 3️⃣  使用 GitHub CLI 手動觸發"
+echo -e "   ${GREEN}gh workflow run \"Deploy to Azure Function App\" --repo ${GITHUB_REPO}${NC}"
+echo ""
+echo -e "${BLUE}========================================${NC}"
 
 # 正常結束，自動清理會由 trap 執行
 echo -e "\n${GREEN}腳本執行完成${NC}"

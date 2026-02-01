@@ -140,12 +140,53 @@ curl https://<function-app-name>.azurewebsites.net/api/version
 
 ## 部署到 Azure
 
+### 方法 1：使用本地部署腳本（推薦用於開發測試）
+
+專案提供本地部署腳本 [local-deploy-azure.sh](local-deploy-azure.sh)，自動化完整的部署流程：
+
+```bash
+# 賦予執行權限
+chmod +x ./local-deploy-azure.sh
+
+# 執行部署
+./local-deploy-azure.sh
+```
+
+**腳本功能：**
+1. ✅ 檢查 Azure CLI 登入狀態
+2. ✅ 顯示當前使用的 Azure 訂閱
+3. ✅ 清理並建置專案（Release 模式）
+4. ✅ 部署到 Azure Function App
+5. ✅ 自動取得 Function Key
+6. ✅ 顯示測試 URL 和呼叫範例
+
+**前置需求：**
+- 已安裝 Azure CLI (`az`)
+- 已安裝 Azure Functions Core Tools (`func`)
+- 已登入 Azure (`az login`)
+- 已建立 Function App
+
+**輸出範例：**
+```bash
+✓ 部署完成！
+✓ Function Key: abc123...
+測試 URL：
+https://func-yao-lab-938612.azurewebsites.net/api/httptriggerfunction?code=abc123...
+
+測試 Function：
+curl "https://func-yao-lab-938612.azurewebsites.net/api/httptriggerfunction?code=abc123..."
+```
+
+> **注意**：此腳本包含專案特定配置（Function App 名稱、Resource Group），已加入 `.gitignore`，不會提交到版本控制。
+
+### 方法 2：手動部署步驟
+
 1. 使用 Azure CLI 登入:
    ```bash
    az login
    ```
 
-2. 建立 Function App:
+2. 建立 Function App（首次部署）:
    ```bash
    az functionapp create --resource-group <resource-group> \
      --consumption-plan-location eastus \
@@ -155,8 +196,13 @@ curl https://<function-app-name>.azurewebsites.net/api/version
      --storage-account <storage-account>
    ```
 
-3. 部署:
+3. 建置並部署:
    ```bash
+   # 建置專案
+   cd AzureWebApp.Functions
+   dotnet build -c Release
+   
+   # 部署到 Azure
    func azure functionapp publish <function-app-name>
    ```
 
@@ -191,7 +237,7 @@ Workflow 檔案位置：[.github/workflows/deploy-azure-function.yml](.github/wo
 
 **方法 1：使用自動化腳本（推薦）**
 
-專案提供輔助腳本 [setup-github-secret.sh](setup-github-secret.sh) 來簡化設定流程：
+專案提供自動化腳本 [setup-github-secret.sh](setup-github-secret.sh)：
 
 ```bash
 # 賦予執行權限
@@ -201,11 +247,15 @@ chmod +x ./setup-github-secret.sh
 ./setup-github-secret.sh
 ```
 
+**前置需求：**
+- 已安裝並登入 Azure CLI (`az login`)
+- 已安裝並登入 GitHub CLI (`gh auth login`)
+
 腳本會自動完成：
-1. 從 Azure 取得 Publish Profile
-2. 複製到系統剪貼簿
-3. 提供詳細的 GitHub Secret 設定指引
-4. 自動清理敏感暫存檔
+1. 檢查必要工具（Azure CLI + GitHub CLI）
+2. 從 Azure 取得 Publish Profile
+3. 使用 GitHub CLI 直接寫入 Secret
+4. 驗證設定並自動清理敏感暫存檔
 
 **方法 2：手動設定**
 
@@ -238,17 +288,39 @@ env:
 
 #### 步驟 3: 觸發部署
 
-**自動觸發：**
+**方法 1：使用空 commit 腳本（快速觸發）**
+
+專案提供快速建立空 commit 的腳本 [empty-commit.sh](empty-commit.sh)：
+
+```bash
+# 賦予執行權限
+chmod +x ./empty-commit.sh
+
+# 建立空 commit
+./empty-commit.sh
+
+# 推送到 GitHub 觸發部署
+git push origin main
+```
+
+> **說明**：腳本會建立一個帶時間戳記的空 commit，不會變更任何程式碼。
+
+**方法 2：手動推送程式碼**
 ```bash
 git add .
 git commit -m "Update function code"
 git push origin main
 ```
 
-**手動觸發：**
+**方法 3：透過 GitHub 網頁觸發**
 1. 前往 GitHub Repository → Actions
 2. 選擇 "Deploy to Azure Function App" workflow
 3. 點選 "Run workflow" → "Run workflow"
+
+**方法 4：使用 GitHub CLI 觸發**
+```bash
+gh workflow run "Deploy to Azure Function App" --repo yaochangyu/azure-web-app-func
+```
 
 ### 監控部署
 
