@@ -189,3 +189,7 @@ docker-compose.local.yml
 # local-config/
 # *.key
 # *.pem
+
+# Claude AI skills
+.claude/skills/azure-expert
+.claude/skills/skill-creator
