@@ -1,0 +1,191 @@
+# Build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.rsuser
+
+# IDEs and tools
+.vs/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Test results
+TestResults/
+
+# Logs
+*.log
+
+# Publish
+publish/
+publish-local/
+publish-local.zip
+*.zip
+
+# ASP.NET Core
+wwwroot/lib/
+
+# Node
+node_modules/
+
+# dotnet tool artifacts
+.dotnet/
+
+# Azure
+.azure/
+
+# ========== SENSITIVE FILES - NEVER COMMIT THESE! ==========
+# Configuration files with secrets
+appsettings.*.json
+!appsettings.Development.json
+appsettings.Local.json
+appsettings.local.json
+
+# Secrets and credentials
+**/secrets.json
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.*.secret
+
+# Azure credentials and profiles
+azure-credentials.json
+*.publishsettings
+*.pubxml
+*.azurePublish.xml
+
+# Connection strings and sensitive data
+*.PublishSettings
+database-credentials.txt
+connection-strings.json
+
+# Local environment files
+.local/
+local-settings.json
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE configuration (machine-specific)
+.vs/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# ========== BUILD AND DEPLOYMENT ==========
+# Build outputs
+bin/
+obj/
+dist/
+build/
+out/
+
+# Publish profiles and outputs
+publish/
+publish-local/
+PublishProfiles/
+*.zip
+deployment/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+
+# Node.js (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+
+# ========== TESTING AND DIAGNOSTICS ==========
+# Test results
+TestResults/
+*.trx
+coverage/
+.coverage
+.coveragerc
+
+# Logs
+*.log
+logs/
+
+# ========== AZURE AND CLOUD ==========
+# Azure local development
+.azure/
+azure-functions-core-tools/
+local.settings.json
+
+# Azure publish
+publish/
+deployment-output/
+
+# ========== DIAGNOSTIC AND TEMPORARY ==========
+# dotnet tool artifacts
+.dotnet/
+
+# Rider
+.idea/
+*.sln.iml
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.rsuser
+
+# Visual Studio cache/options
+.vs/
+.vscode/
+
+# ========== DOCUMENTATION ==========
+# Local documentation builds
+docs/_build/
+docs/.venv/
+
+# Generated API documentation
+api-docs/
+
+# ========== ENVIRONMENT SPECIFIC ==========
+# Docker
+Dockerfile.local
+docker-compose.local.yml
+
+# CI/CD
+.github/workflows/local-*
+
+# Project-specific (add as needed)
+# Example:
+# local-config/
+# *.key
+# *.pem
