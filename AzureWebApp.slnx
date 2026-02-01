@@ -1,3 +1,3 @@
 <Solution>
-  <Project Path="AspNetCoreApp/AspNetCoreApp.csproj" />
+  <Project Path="AzureWebApp.Functions/AzureWebApp.Functions.csproj" />
 </Solution>
